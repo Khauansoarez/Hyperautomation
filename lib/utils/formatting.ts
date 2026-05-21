@@ -3,6 +3,8 @@ import { Attempt } from '@/lib/types'
 // Formatação de data para o padrão brasileiro
 export function formatDate(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
+  if (Number.isNaN(dateObj.getTime())) return 'Data indisponível'
+
   return dateObj.toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: 'short',
@@ -14,7 +16,7 @@ export function formatDate(date: Date | string): string {
 
 // Cálculo de porcentagem
 export function calculatePercentage(score: number, total: number): number {
-  if (total === 0) return 0
+  if (!Number.isFinite(score) || !Number.isFinite(total) || total <= 0) return 0
   return Math.round((score / total) * 100)
 }
 
@@ -29,8 +31,11 @@ export function getQuizStatus(answered: number, total: number, completed: boolea
   color: string
   percentage: number
 } {
+  const safeTotal = Number.isFinite(total) && total > 0 ? total : 60
+  const safeAnswered = Math.min(Math.max(Number(answered) || 0, 0), safeTotal)
+
   if (completed) {
-    const percentage = Math.round((answered / total) * 100)
+    const percentage = Math.round((safeAnswered / safeTotal) * 100)
     return {
       status: `Concluído (${percentage}%)`,
       color: '#22c55e',
@@ -38,7 +43,7 @@ export function getQuizStatus(answered: number, total: number, completed: boolea
     }
   }
   
-  if (answered === 0) {
+  if (safeAnswered === 0) {
     return {
       status: 'Não iniciado',
       color: '#6b7280',
@@ -46,7 +51,7 @@ export function getQuizStatus(answered: number, total: number, completed: boolea
     }
   }
   
-  const percentage = Math.round((answered / total) * 100)
+  const percentage = Math.round((safeAnswered / safeTotal) * 100)
   return {
     status: 'Em progresso',
     color: '#f59e0b',

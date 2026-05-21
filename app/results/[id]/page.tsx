@@ -21,5 +21,5 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         notFound()
     }
 
-    return <ResultsContent attempt={attempt as any} />
+    return <ResultsContent attempt={attempt} />
 }

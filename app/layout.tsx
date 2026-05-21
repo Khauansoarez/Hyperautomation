@@ -13,19 +13,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet" />
-      </head>
       <body className="space-grotesk-font">
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                const saved = localStorage.getItem('theme')
-                const preferred = saved ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                document.documentElement.setAttribute('data-theme', preferred)
+                try {
+                  const saved = localStorage.getItem('theme')
+                  const preferred = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                  document.documentElement.setAttribute('data-theme', preferred)
+                } catch (e) {
+                  document.documentElement.setAttribute('data-theme', 'dark')
+                }
               })()
             `
           }}

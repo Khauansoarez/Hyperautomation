@@ -1,0 +1,722 @@
+[
+  {
+    "content": "A mid-sized company is synchronizing Salesforce Accounts with a marketing SaaS platform. The proof of concept using Composer worked well. Now the company is scaling to five regions, each with different data governance rules. Requirements: SLA under 2 minutes per sync, client-specific throttling, centralized API monitoring per region, LGPD compliance in specific regions, and the sponsor insists on keeping the solution simple and avoiding unnecessary API layers.\n\nWhich approach BEST balances time-to-value, governance, and scalability while respecting the simplicity constraint?",
+    "options": [
+      "A. Keep Composer as the primary layer, attach generic rate-limiting and SLA policies directly to the outbound HTTP connector, and rely only on Composer execution logs to monitor each region, without adding any other platform.",
+      "B. Immediately migrate the entire integration into a single Mule application with region-specific conditional logic, expose it as one REST endpoint, apply global rate limiting in API Manager, and use IP filters to differentiate regions without changing the current Composer design.",
+      "C. Adopt a two-track approach: preserve the existing Composer flows for current regions, design an Anypoint System API already prepared for regional governance and LGPD compliance for new regions, and gradually migrate legacy regions to that System API, maintaining simplicity today and standardization in the future.",
+      "D. Increase the complexity of the Composer flow by adding multiple regional decision branches, implementing SLA controls through timestamp calculations inside the flow, and using variables to simulate per-client throttling, without introducing any formal API layer.",
+      "E. Create an intermediate Apex service that receives Composer calls, implements regional rules in code, and uses Named Credentials to call the SaaS directly, leaving observability and policy control entirely inside Salesforce."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A financial company has a refund process for high-value Cases. Requirements include approvals from Sales, Compliance, and Finance; individual SLA per department; automatic escalation to the regional manager; if Compliance rejects the request, Sales must be notified and the Case returned for review; the process lasts between 2 and 5 days; leadership wants dashboards showing bottlenecks and average processing time per department.\n\nWhich design correctly solves SLA management, escalation, feedback loops, and visibility?",
+    "options": [
+      "A. Keep a single Case-triggered Flow, add serial email actions for each approval, and create a second scheduled Flow that reevaluates open Cases every hour and sends manually configured escalation notifications.",
+      "B. Model the process using Flow Orchestration, creating separate Stages for Sales, Compliance, and Finance, using Background Steps to calculate and validate SLAs, Evaluation Flows to decide whether to advance or return the Case for review, and Interactive Steps for each approver, with reporting on runs and work items to identify bottlenecks.",
+      "C. Centralize all logic inside a MuleSoft Composer flow, calling internal APIs from each department, keeping timers and retries inside Composer, and publishing only aggregated logs in an external dashboard without using Salesforce orchestration objects.",
+      "D. Split the original Flow into subflows by department, parameterized through Custom Metadata for SLAs and rules, while a separate Process Builder monitors Case update dates to trigger escalation emails when thresholds are reached.",
+      "E. Configure Field Service Lightning Scheduler to “schedule” approvals as if they were service appointments, associate SLAs with each appointment, and implement an Apex job to resend emails to overdue approvers, without using Flow Orchestration."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A customer wants to integrate Salesforce with an external invoicing system. The legacy system has a stable REST API and a user interface available. Trigger: Opportunity Closed Won. Volume: 500 invoices per month with peaks of 2,000. SLA under 30 minutes. Failures must be visible inside Salesforce. There is a global rate limit of 100 calls per minute, and the Center of Excellence is transitioning from RPA to APIs.\n\nWhich pattern addresses volume, SLA, rate limits, visibility, and the CoE strategy?",
+    "options": [
+      "A. Orchestrate an RPA bot that fills out the invoicing application UI based on Opportunity Closed Won events triggered by Composer, using scheduled executions every few minutes to guarantee the SLA without considering the global API limit.",
+      "B. Implement a record-triggered Flow on Opportunity that directly calls the invoicing system REST API, managing retry logic through custom Apex actions and logging failures only in text fields on the Opportunity record.",
+      "C. Use a Composer flow triggered by Opportunity stage changes to call the REST endpoint directly and, if failures occur, enqueue records into a custom Salesforce list processed by a Scheduled Flow every 30 minutes.",
+      "D. Create a System API in Anypoint that encapsulates the invoicing REST service, apply policies in API Manager for rate limiting and, if necessary, queueing or throttling, and have the record-triggered Flow invoke this System API while recording standardized responses and errors inside Salesforce.",
+      "E. Trigger a Flow that invokes an intermediate Composer flow for quick validations before calling the invoicing API, while a scheduled job manually reprocesses failed invoice IDs using text logs."
+    ],
+    "correctAnswer": "D",
+    "explanation": null
+  },
+  {
+    "content": "Composer synchronizes a SaaS platform every 15 minutes. A new contract limits the integration to 60 calls per hour. Currently there are 4 synchronizations per hour, 500 records per synchronization, and 10 records per call: 200 calls per hour. The business wants data as fresh as possible, the CoE wants APIs only, RPA is being discontinued, and switching SaaS vendors is not an option.\n\nWhich strategy reduces the number of calls from 200 to 60 per hour while keeping data fresh and without abandoning Composer?",
+    "options": [
+      "A. Reduce execution frequency from four times per hour to once per hour, increase page size from 10 to 50 records per call, and apply a “modified since” filter based on timestamps so that only delta changes are retrieved, keeping the number of calls within the contract limits.",
+      "B. Reimplement the process using an RPA bot that navigates through the SaaS interface, assuming that contractual limits apply only to APIs and not to the UI, and orchestrate the bot exactly like the current Composer executions.",
+      "C. Keep the 15-minute schedule, but create a cache layer in Salesforce that prevents new calls to the SaaS if local records have not changed, assuming this will automatically reduce calls even if remote changes occur.",
+      "D. Split the integration into two independent Composer flows, each with its own authentication identity, to distribute calls across multiple credentials and effectively multiply the contracted limit.",
+      "E. Preserve the four executions per hour and focus only on “critical” records from the last 24 hours, moving historical data into a data warehouse and assuming that lower data volume per call, without changing pagination, will be enough to stay under the limit."
+    ],
+    "correctAnswer": "A",
+    "explanation": null
+  },
+  {
+    "content": "A System API v1 is used by 23 consumers. New requirements include adding five fields to the response, renaming three request fields as a breaking change, and deprecating two endpoints, where one consumer will only migrate in 90 days. Exchange currently shows v1 as STABLE.\n\nWhich lifecycle management approach correctly handles additive changes, breaking changes, and an orderly transition?",
+    "options": [
+      "A. Publish a new v2 version containing both the additive and breaking changes, mark v1 as DEPRECATED immediately, and require all 23 consumers to migrate within 30 days regardless of criticality.",
+      "B. Release version v1.1 containing only additive and backward-compatible changes while keeping v1 marked as STABLE, and simultaneously introduce version v2 in BETA state containing the breaking changes and deprecated endpoints, allowing consumers to plan and execute phased migrations.",
+      "C. Create a v2-BETA version that includes all changes, keep v1 in parallel for six months, and provide an adapter that receives v1 calls and internally converts them to v2, making the new contract invisible to legacy clients.",
+      "D. Publish v2 replacing v1 entirely, mark v1 as deprecated, and provide only an Apex wrapper inside Salesforce to translate Flow and Composer calls into the new contract, leaving external consumers responsible for adapting themselves.",
+      "E. Keep only v1 and introduce changes directly into existing fields and endpoints, documenting which fields were reworked and which endpoints should be avoided, without changing the version number."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A credit approval system uses Flow Orchestration with more than 200 runs per day. A temporary regulation requires blocking new requests for 60 days while allowing approvals already in progress to complete. After 60 days, the system must be unblocked without code changes. Compliance requires an audit trail, and the regulation may be extended.\n\nWhich design solves blocking, completion, auditability, and extensibility without requiring refactoring?",
+    "options": [
+      "A. Deactivate the entire Orchestration, instruct users to process approvals through email and spreadsheets during the 60 days, and reactivate the original design once the regulation expires, without centralized auditing.",
+      "B. Introduce a compliance “switch” using Custom Settings or Custom Metadata, validated at the entry Stage of the Orchestration so that new requests are blocked with a clear message when the flag is enabled, while in-progress executions continue normally, with the possibility of extending the block without modifying the flow.",
+      "C. Create a new initial “Compliance Check” Stage that analyzes whether the request is new or already existing based on creation date, but without any parameterization mechanism for the blocking period, requiring manual changes whenever the regulation changes.",
+      "D. Apply 100% rate limiting on the Orchestration entry endpoint through API Manager, blocking invocations from certain IPs and assuming this automatically prevents new requests without affecting current ones.",
+      "E. Add an Apex trigger on the entry entities that checks a static compliance flag and prevents the creation of new records, requiring deployments whenever the regulation changes."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A System API in Anypoint is called by Flows, Composer, RPA, and partners. SLA requirements are under 2 seconds for 95% of requests and under 5 seconds for 99%. The API itself is fast, but backend performance varies and the SLA is strict. The business wants to proactively detect backend latency above 1.5 seconds and trigger failover to a cache or notify leadership.\n\nWhich combination of layers best enforces SLA, detection, and failover?",
+    "options": [
+      "A. Configure only SLA policies in API Manager for the System API endpoint, trigger alerts via MuleSoft Monitoring when SLAs are violated, and manually activate a fixed 30-minute circuit breaker inside the Mule app.",
+      "B. Define Named Credentials in Salesforce with a 1.5-second timeout and let the Flow invoke the System API with retry and cache fallback logic, without distinguishing time spent in Mule versus the backend.",
+      "C. Adopt a centralized APM solution capable of measuring Mule latency separately from backend latency, emitting webhooks when backend latency exceeds 1.5 seconds to activate a circuit breaker mechanism, while API Manager continues monitoring global SLA compliance and incident tracking.",
+      "D. Rely exclusively on SLA policies in API Manager, without specific backend instrumentation, and resolve SLA violations later through manual investigation of mixed Mule and legacy system logs.",
+      "E. Implement only timeouts and retries with exponential backoff inside the Mule app, record detailed logs, and use API Manager only as a log repository without active SLA or rate-limiting policies."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A retail company uses Salesforce Flow to trigger order fulfillment whenever an Opportunity becomes Closed Won. The fulfillment provider exposes APIs, but different countries have different compliance rules and data retention policies. The company expects rapid growth and wants reusable integrations for future channels such as mobile apps and partner portals. Leadership also wants to avoid overengineering the current implementation.\n\nWhich architecture BEST balances scalability, reuse, and simplicity?",
+    "options": [
+      "A. Keep all integrations directly inside the record-triggered Flow and implement country rules using Decision elements and formulas.",
+      "B. Build a single Mule application containing all fulfillment logic, country rules, and channel-specific formatting inside one endpoint.",
+      "C. Create reusable System APIs for fulfillment providers and allow Experience APIs to evolve later if new channels appear, while the current Salesforce Flow consumes only the required APIs.",
+      "D. Replace the Flow with RPA bots because bots can adapt faster to country-specific changes.",
+      "E. Store all country-specific logic in Custom Metadata and keep Composer directly integrated with the provider APIs."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company processes supplier onboarding requests. The workflow includes:\n\n- Procurement approval\n- Legal validation\n- Compliance review\n- Parallel tasks between departments\n- SLA escalation after 48 hours\n- Reporting on bottlenecks and approval time\n\nThe process may pause for several days waiting for user actions.\n\nWhich solution BEST fits the requirements?",
+    "options": [
+      "A. A single Screen Flow with loops and wait elements running continuously until all approvals are complete.",
+      "B. Flow Orchestration with parallel stages, Interactive Steps for human approvals, and reporting on orchestration work items.",
+      "C. Composer flows combined with scheduled polling every hour to verify approval status in external spreadsheets.",
+      "D. RPA bots reading approval emails and updating Salesforce records automatically.",
+      "E. Apex batch jobs controlling approval routing and escalation logic manually."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "An insurance company still depends on a desktop underwriting application without APIs. However, customer data already exists in Salesforce and must be synchronized automatically. Requirements include:\n\n- Minimal manual effort\n- Failure screenshots for troubleshooting\n- Audit trail\n- Ability to monitor bots in real time\n\nWhich approach BEST satisfies these requirements?",
+    "options": [
+      "A. Use Composer because it can replace all desktop interactions through standard connectors.",
+      "B. Use Salesforce Flow with External Services and Named Credentials to automate the desktop application.",
+      "C. Use MuleSoft RPA with Process Monitoring, screenshots, and analysis packages for troubleshooting.",
+      "D. Build a custom Apex integration that simulates keyboard inputs from Salesforce.",
+      "E. Replace the desktop system immediately before automating anything."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company exposes APIs to internal teams. Recently, multiple teams started duplicating integrations because they could not easily discover reusable assets. Leadership now wants:\n\n- Central API catalog\n- Asset reuse\n- API discoverability\n- Lifecycle visibility\n- Standardized governance\n\nWhich solution BEST addresses the problem?",
+    "options": [
+      "A. Store API documentation manually in SharePoint and distribute links through email.",
+      "B. Use Composer as the primary repository for integration assets and governance.",
+      "C. Publish APIs and reusable assets in Anypoint Exchange while managing lifecycle and policies through Anypoint Platform.",
+      "D. Create a single “master API” that every team must modify when new integrations are needed.",
+      "E. Use RPA Manager to catalog all APIs and integrations."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A logistics company has a Composer integration between Salesforce and a transportation SaaS. Volume is increasing rapidly, and failures caused by vendor throttling are becoming frequent. The business wants to preserve Composer for business-managed integrations, but IT requires centralized monitoring and policy enforcement.\n\nWhich strategy BEST aligns with these goals?",
+    "options": [
+      "A. Add retry loops directly inside Composer until the SaaS eventually accepts requests.",
+      "B. Replace Composer entirely with manual CSV uploads performed by operations teams.",
+      "C. Introduce an Anypoint API layer with throttling and monitoring policies while Composer consumes the managed API instead of the SaaS directly.",
+      "D. Increase the number of Composer flows running in parallel to overcome throttling.",
+      "E. Use Process Builder to retry failed integrations every 5 minutes."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company needs to automate customer support escalations. Requirements:\n\n- Cases older than 24 hours must escalate automatically\n- Support managers must approve compensation requests\n- External billing APIs must be updated\n- Legacy ERP screens still require manual-style interaction\n\nWhich architecture BEST fits the scenario?",
+    "options": [
+      "A. Salesforce Flow only, including manual ERP updates by agents.",
+      "B. Flow Orchestration for approvals and SLAs, APIs for billing integration, and RPA for ERP screen interactions.",
+      "C. Composer for all logic, including ERP screen automation.",
+      "D. Apex triggers for escalation logic and spreadsheets for ERP synchronization.",
+      "E. RPA bots handling the complete process without Salesforce orchestration."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "An enterprise has dozens of integrations built directly between systems. Every change in one system causes cascading failures in multiple integrations. The architecture team wants:\n\n- Loose coupling\n- Reusable integrations\n- Faster delivery for future projects\n- Reduced duplication\n\nWhich principle BEST addresses these problems?",
+    "options": [
+      "A. Point-to-point integration design with centralized spreadsheets documenting dependencies.",
+      "B. API-led connectivity using reusable System, Process, and Experience APIs.",
+      "C. Replacing APIs with RPA bots to isolate systems from each other.",
+      "D. Building all integrations directly in Salesforce Apex for tighter control.",
+      "E. Using only Composer flows without any reusable API strategy."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A healthcare provider uses APIs to exchange patient information with external systems. Due to regulatory requirements, the organization must:\n\n- Apply authentication consistently\n- Monitor API traffic\n- Enforce client-specific rate limits\n- Track usage analytics\n- Apply policies without changing application code\n\nWhich tool BEST fits these requirements?",
+    "options": [
+      "A. Salesforce Flow Builder",
+      "B. MuleSoft Composer",
+      "C. Anypoint API Manager",
+      "D. MuleSoft RPA Manager",
+      "E. Einstein Bots"
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company built an automation using RPA because a supplier portal had no APIs. Six months later, the supplier launches a stable REST API. The RPA bot frequently breaks whenever the UI changes, creating high maintenance costs.\n\nWhat is the BEST next step?",
+    "options": [
+      "A. Keep the RPA bot permanently because it already works in production.",
+      "B. Replace the RPA automation gradually with API-based integration while retaining RPA only as fallback during transition.",
+      "C. Increase screenshot sensitivity and add more UI selectors to stabilize the bot indefinitely.",
+      "D. Move the bot execution into Composer flows without changing the integration style.",
+      "E. Rewrite the entire process as a monolithic Apex batch job."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A company needs near real-time synchronization between Salesforce and multiple regional systems. Requirements include:\n\n- SLA under 5 minutes\n- Regional observability\n- Ability to evolve providers independently\n- Governance and throttling\n- Reuse for future mobile applications\n\nWhich design BEST aligns with API-led connectivity principles?",
+    "options": [
+      "A. Direct point-to-point integrations from Salesforce Flow to each regional system.",
+      "B. One Composer flow containing all regional business logic and throttling calculations.",
+      "C. System APIs per regional provider, reusable Process APIs for orchestration, and future Experience APIs for consumer-specific channels.",
+      "D. RPA bots interacting with each regional system UI to standardize integrations.",
+      "E. A single Apex REST service handling all integrations and monitoring internally."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A multinational company uses Salesforce Flow to initiate customer onboarding. The onboarding process calls external banking APIs and must support:\n\n- Different SLAs by country\n- Regional compliance requirements\n- Centralized monitoring\n- Future reuse by mobile and partner applications\n- Minimal duplication of integrations\n\nThe business also wants onboarding teams to continue using simple no-code automations where possible.\n\nWhich architecture BEST satisfies these requirements?",
+    "options": [
+      "A. Build all country-specific integrations directly inside Salesforce Flow using multiple Decision branches and HTTP Callouts.",
+      "B. Create reusable System APIs for each banking provider, orchestrate reusable business logic through Process APIs, and allow Flow to consume only the required endpoints.",
+      "C. Replace all onboarding automations with RPA bots to simplify governance and compliance management.",
+      "D. Centralize all country logic inside one Composer flow with manual throttling variables and scheduled retries.",
+      "E. Use Apex triggers to integrate directly with banking APIs and expose custom endpoints from Salesforce."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A company automates invoice processing using MuleSoft RPA because the accounting application has no APIs. The operations team complains that:\n\n- Failures are difficult to diagnose\n- Bots occasionally stop in the middle of execution\n- Support teams need visibility into the exact step that failed\n- Audit teams require execution evidence\n\nWhich capability BEST addresses these operational requirements?",
+    "options": [
+      "A. Composer execution history with manual screenshots uploaded by users after failures.",
+      "B. Salesforce Flow fault emails combined with Apex debug logs.",
+      "C. RPA Process Monitoring, Process Streaming, screenshots, and Analysis Packages for troubleshooting failed executions.",
+      "D. API Manager analytics dashboards with rate limiting enabled.",
+      "E. Anypoint Exchange asset versioning and lifecycle states."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "An enterprise integration team is designing APIs for multiple departments. Requirements include:\n\n- APIs must be reusable across projects\n- Teams should discover existing assets before building new integrations\n- APIs need lifecycle states such as stable and deprecated\n- Governance and monitoring must remain centralized\n- New projects should reduce delivery time through reuse\n\nWhich approach BEST aligns with composable building block principles?",
+    "options": [
+      "A. Build integrations directly inside Salesforce Flows so each department can customize independently.",
+      "B. Create reusable APIs and publish them into Anypoint Exchange while managing policies and operational visibility through Anypoint Platform.",
+      "C. Use RPA bots as reusable shared components for every integration scenario.",
+      "D. Store integration templates in spreadsheets and email them to development teams when requested.",
+      "E. Consolidate all integrations into one large Mule application with shared conditional logic."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A company uses Composer to synchronize customer data between Salesforce and multiple SaaS applications. As adoption grows, different business units start creating their own flows independently, resulting in duplicated integrations, inconsistent mappings, and governance concerns. The architecture team wants:\n\n- Centralized reuse\n- Standardized integrations\n- Faster onboarding for new projects\n- Minimal disruption to existing Composer users\n\nWhich strategy BEST addresses these concerns?",
+    "options": [
+      "A. Force every business unit to maintain its own Composer flows independently to maximize agility.",
+      "B. Replace all Composer flows immediately with custom Apex integrations maintained by IT.",
+      "C. Introduce reusable System APIs published in Anypoint Exchange while allowing Composer flows to consume standardized APIs instead of integrating directly with SaaS systems.",
+      "D. Consolidate every integration into one massive Composer flow managed by a single administrator.",
+      "E. Replace Composer with RPA bots because bots centralize automation logic automatically."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A customer service organization needs an automation process with the following characteristics:\n\n- Multiple human approvals\n- Parallel review paths\n- Escalation if tasks remain pending for 48 hours\n- Ability to reassign work items\n- Reporting on bottlenecks and average approval duration\n- Integration with external systems after approval\n\nWhich solution BEST fits the scenario?",
+    "options": [
+      "A. One large Screen Flow containing all approval logic and wait conditions.",
+      "B. Composer flows orchestrating approvals through email responses.",
+      "C. Flow Orchestration with Interactive Steps, Background Steps, and Evaluation Flows integrated with external APIs.",
+      "D. Apex schedulers polling records every hour and sending notifications manually.",
+      "E. RPA bots monitoring email inboxes for approval responses."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A manufacturing company has several Mule applications deployed in CloudHub. During seasonal peaks, CPU usage spikes dramatically, causing degraded response times. Leadership wants the environment to scale automatically while minimizing operational effort.\n\nWhich approach BEST addresses this requirement?",
+    "options": [
+      "A. Manually increase worker size every time CPU usage becomes high.",
+      "B. Configure CloudHub autoscaling policies based on CPU and memory thresholds to scale workers horizontally or vertically as needed.",
+      "C. Replace CloudHub deployments with Composer flows because Composer automatically handles infrastructure scaling.",
+      "D. Deploy all integrations into a single larger worker permanently to avoid scaling events.",
+      "E. Use RPA bots to distribute integration workloads during traffic spikes."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "An organization exposes APIs to partners and internal mobile applications. Requirements include:\n\n- OAuth authentication\n- Rate limiting by consumer\n- API analytics\n- Centralized policy enforcement\n- Ability to apply governance without modifying application code\n\nWhich component BEST fulfills these requirements?",
+    "options": [
+      "A. Salesforce Flow Builder",
+      "B. MuleSoft Composer",
+      "C. API Manager",
+      "D. RPA Manager",
+      "E. Einstein for Flow"
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A business analyst wants to automate a process where:\n\n- Customer information is collected through Salesforce\n- Data must be entered into a legacy desktop insurance application\n- The process depends heavily on screen navigation\n- UI layouts occasionally change\n- Failures must be diagnosable quickly\n\nWhich implementation BEST aligns with MuleSoft best practices?",
+    "options": [
+      "A. Composer directly controlling mouse and keyboard actions inside the desktop application.",
+      "B. MuleSoft RPA using Image Search, OCR, anchors, and Analysis Packages for resilient UI automation and troubleshooting.",
+      "C. Salesforce Flow with Decision elements simulating desktop interactions.",
+      "D. Apex automation using HTTP callouts to the desktop application.",
+      "E. API Manager policies applied directly to the desktop application."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A company is modernizing its hyperautomation strategy. Current integrations rely heavily on RPA bots, even for systems that already provide APIs. Maintenance costs are rising because UI changes frequently break automations.\n\nWhat is the BEST long-term strategy?",
+    "options": [
+      "A. Continue investing in RPA because UI automation is always simpler than APIs.",
+      "B. Use API-led connectivity for systems with APIs and reserve RPA only for systems without stable APIs.",
+      "C. Replace all APIs with Composer flows to eliminate governance complexity.",
+      "D. Centralize all automation logic inside Salesforce Apex.",
+      "E. Expose RPA bots as APIs and continue using them as the primary integration layer."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "An integration architect wants to improve resilience between Salesforce and external ERP systems. Current point-to-point integrations cause failures whenever ERP vendors change their endpoints or payload formats.\n\nWhich architecture BEST improves resilience and future flexibility?",
+    "options": [
+      "A. Direct integrations from Salesforce Flow to each ERP endpoint.",
+      "B. One Composer flow with conditional logic for every ERP variation.",
+      "C. System APIs abstracting ERP systems from consumers, allowing downstream systems to change independently.",
+      "D. RPA bots simulating ERP interactions through browser automation.",
+      "E. Apex triggers hardcoding ERP-specific mappings directly into Salesforce."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A hyperautomation team wants to improve API discoverability and reuse across departments. They also need:\n\n- Lifecycle states such as development, stable, and deprecated\n- Shared documentation\n- Reusable specifications\n- Governance consistency\n\nWhich platform capability BEST addresses these requirements?",
+    "options": [
+      "A. RPA Manager Process Monitoring",
+      "B. Salesforce DevOps Center",
+      "C. Anypoint Exchange",
+      "D. Composer Run History",
+      "E. Flow Debug Logs"
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company processes employee onboarding using Salesforce Flow. The process includes:\n\n- API integrations with HR systems\n- Human approvals\n- Uploading information into a legacy payroll desktop system\n- SLA tracking\n- Escalation handling\n- Auditability\n\nWhich architecture BEST satisfies all requirements?",
+    "options": [
+      "A. Salesforce Flow only, including manual payroll updates.",
+      "B. Composer-only architecture integrating every system directly.",
+      "C. Flow Orchestration for human workflow coordination, APIs for HR integrations, and RPA for payroll desktop automation.",
+      "D. RPA bots handling the complete onboarding process independently of Salesforce.",
+      "E. Apex batch jobs replacing Flow and Composer entirely."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "An enterprise wants to reduce duplicate API development across teams. Architects decide to implement API-led connectivity. During design reviews, some teams propose bypassing System APIs and integrating directly with backend systems “to save time.”\n\nWhich statement BEST explains why this is a poor long-term strategy?",
+    "options": [
+      "A. Direct integrations increase reuse and reduce governance overhead.",
+      "B. Bypassing System APIs tightly couples consumers to backend systems, reducing reuse and increasing future maintenance costs.",
+      "C. API-led connectivity is only necessary for mobile applications.",
+      "D. System APIs are only useful when RPA bots are unavailable.",
+      "E. Composer flows automatically eliminate all coupling concerns even without APIs."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A company uses Salesforce Flow to trigger integrations with an external warehouse system. Initially, the integration volume was small, but after international expansion:\n\n- API traffic increased significantly\n- Different regions require different throttling limits\n- Operations teams want centralized monitoring\n- The business still wants low-code maintenance for simple automations\n\nWhich architecture BEST balances governance and agility?",
+    "options": [
+      "A. Continue calling the warehouse API directly from Flow and implement throttling through formula fields and scheduled paths.",
+      "B. Use Composer only, duplicating flows for each region to isolate throttling rules.",
+      "C. Introduce region-aware System APIs managed through API Manager while Flow and Composer consume standardized endpoints.",
+      "D. Replace all APIs with RPA bots to avoid throttling constraints.",
+      "E. Centralize all regional logic inside Apex triggers."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A financial institution needs a loan approval process with:\n\n- Parallel approvals from Risk and Compliance\n- Human intervention steps\n- Automatic escalation after SLA expiration\n- Ability to return applications for correction\n- Full auditability of decisions\n- Visibility into bottlenecks\n\nWhich solution BEST fits the requirements?",
+    "options": [
+      "A. A single record-triggered Flow with multiple Decision elements and email alerts.",
+      "B. Composer flows combined with spreadsheets for approval tracking.",
+      "C. Flow Orchestration using Stages, Interactive Steps, and Evaluation Flows with reporting on work items.",
+      "D. Apex schedulers managing approvals and escalations manually.",
+      "E. RPA bots reading approval emails and updating records."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A healthcare provider uses MuleSoft RPA to interact with an old desktop claims system. Developers notice the bots fail frequently because UI elements move slightly after software updates.\n\nWhich best practice BEST improves bot resiliency?",
+    "options": [
+      "A. Hardcode additional screen coordinates for every possible UI position.",
+      "B. Use OCR, Image Search anchors, and dynamic search regions instead of fixed coordinates.",
+      "C. Increase the number of bots so failures become less noticeable.",
+      "D. Replace all Image Searches with manual keyboard navigation sequences.",
+      "E. Trigger the desktop process through Composer instead of RPA."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "An enterprise wants APIs to be reusable across projects and discoverable by both developers and business teams. They also require:\n\n- Asset versioning\n- Lifecycle states\n- Shared specifications\n- Governance consistency\n\nWhich capability BEST addresses these requirements?",
+    "options": [
+      "A. API Manager only",
+      "B. Flow Orchestration dashboards",
+      "C. Anypoint Exchange",
+      "D. Composer execution logs",
+      "E. RPA Manager"
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A retail company currently uses RPA bots to transfer order information between systems. One of the systems now provides a stable REST API. Leadership wants:\n\n- Reduced maintenance\n- Better scalability\n- Lower operational costs\n- Faster troubleshooting\n\nWhat is the BEST modernization strategy?",
+    "options": [
+      "A. Keep the RPA bots permanently because they already work.",
+      "B. Gradually migrate integrations to APIs while retaining RPA only for systems still lacking APIs.",
+      "C. Replace the RPA bots with manual CSV uploads.",
+      "D. Move all integrations into Apex regardless of system architecture.",
+      "E. Expose the RPA bots themselves as reusable APIs."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A company deploys Mule applications on CloudHub. During end-of-quarter processing:\n\n- CPU usage spikes\n- Applications slow down\n- Message queues grow rapidly\n- Operations teams want scaling without manual intervention\n\nWhich feature BEST addresses this scenario?",
+    "options": [
+      "A. Composer scheduled triggers",
+      "B. Salesforce Scheduled Flows",
+      "C. CloudHub Autoscaling Policies",
+      "D. RPA secure sessions",
+      "E. Apex asynchronous jobs"
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A hyperautomation initiative includes:\n\n- Salesforce approvals\n- External ERP integrations\n- Legacy desktop applications without APIs\n- Customer notifications\n- SLA monitoring\n\nWhich combination BEST fits the scenario?",
+    "options": [
+      "A. Flow Orchestration + APIs + RPA",
+      "B. Composer only",
+      "C. Salesforce Flow only",
+      "D. RPA only",
+      "E. Apex batch jobs only"
+    ],
+    "correctAnswer": "A",
+    "explanation": null
+  },
+  {
+    "content": "An architect notices that multiple projects are creating duplicate integrations to the same ERP system. This causes:\n\n- Inconsistent mappings\n- Different authentication methods\n- Higher maintenance costs\n- Repeated development effort\n\nWhich API-led principle BEST solves this problem?",
+    "options": [
+      "A. Each project should build its own ERP integration independently.",
+      "B. Use reusable System APIs shared across projects.",
+      "C. Replace ERP APIs with UI automation.",
+      "D. Move integrations into spreadsheets for easier maintenance.",
+      "E. Build one monolithic Composer flow for all departments."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A company exposes APIs to external partners. Security teams require:\n\n- OAuth authentication\n- Rate limiting by consumer\n- API analytics\n- Centralized policy enforcement\n- Ability to apply security without changing application code\n\nWhich component BEST fulfills these requirements?",
+    "options": [
+      "A. MuleSoft Composer",
+      "B. Salesforce Flow Builder",
+      "C. API Manager",
+      "D. RPA Builder",
+      "E. Einstein Bots"
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A support organization automates customer issue handling. Requirements include:\n\n- Human approvals\n- Multi-step workflows\n- SLA escalation\n- Integration with external billing APIs\n- Legacy ERP interaction without APIs\n- Operational monitoring\n\nWhich architecture BEST addresses the complete scenario?",
+    "options": [
+      "A. Salesforce Flow only with manual ERP updates.",
+      "B. Composer-only architecture for every integration.",
+      "C. Flow Orchestration coordinating approvals, APIs for billing systems, and RPA for ERP interactions.",
+      "D. Apex-only architecture replacing orchestration tools.",
+      "E. RPA bots performing the entire workflow without Salesforce involvement."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A global enterprise currently uses Composer to synchronize Salesforce Orders with three regional ERP systems. The original implementation worked well at low scale, but new requirements emerged:\n\n- Different SLAs per region\n- Country-specific data residency rules\n- Per-client throttling\n- Real-time monitoring by region\n- Future replacement of one ERP vendor without impacting Salesforce automations\n- Business users must continue managing simple logic themselves\n\nThe architecture board also wants to avoid a disruptive “big bang” migration.\n\nWhich strategy BEST satisfies the technical and organizational constraints?",
+    "options": [
+      "A. Keep Composer directly connected to all ERPs and implement region-specific controls using branching logic, scheduled retries, and variables.",
+      "B. Replace Composer completely with a single monolithic Mule application exposing one endpoint for every ERP and region.",
+      "C. Introduce regional System APIs managed through API Manager, progressively migrate Composer flows to consume those APIs, and preserve Composer for orchestration owned by business teams.",
+      "D. Replace all integrations with RPA bots to isolate Salesforce from ERP vendor changes.",
+      "E. Move all integration logic into Apex services and use Named Credentials to enforce governance centrally."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A healthcare company processes patient enrollment across multiple systems. Requirements include:\n\n- Human approvals by medical and legal teams\n- Parallel review stages\n- Automatic escalation if SLAs are missed\n- Ability to send records back for correction\n- Integration with insurance APIs\n- Uploading signed forms into a desktop application without APIs\n- Full operational auditability\n\nThe process can remain active for several days.\n\nWhich architecture BEST addresses the complete scenario?",
+    "options": [
+      "A. One large Screen Flow with wait elements, email alerts, and Apex integrations.",
+      "B. Composer orchestrating approvals through email notifications while RPA uploads documents.",
+      "C. Flow Orchestration coordinating human-centric workflow, APIs handling insurance integrations, and MuleSoft RPA automating the desktop application.",
+      "D. RPA bots executing the entire workflow independently of Salesforce.",
+      "E. Apex schedulers coordinating all human approvals and desktop interactions manually."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company exposes APIs to internal teams and external partners. Over time, multiple versions of the same API emerged, causing duplicated integrations and inconsistent security implementations. Leadership now requires:\n\n- Reusable APIs\n- Version governance\n- Controlled deprecation\n- Discoverability\n- Standardized security policies\n- Central operational monitoring\n\nWhich combination BEST fulfills these requirements?",
+    "options": [
+      "A. Composer execution history combined with manually maintained documentation portals.",
+      "B. API Manager for governance and security, Anypoint Exchange for discoverability and reuse, and Runtime Manager/Monitoring for observability.",
+      "C. RPA Manager combined with Flow Debug Logs.",
+      "D. Salesforce Flow with External Services and Named Credentials only.",
+      "E. One large Mule application exposing all APIs through a single endpoint."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A logistics company uses MuleSoft RPA to interact with a shipping application that changes layout frequently. Bots often fail because buttons move slightly after UI updates. The support team also struggles to identify exactly where failures happen.\n\nWhich design improvement BEST increases resiliency and operational troubleshooting?",
+    "options": [
+      "A. Add more absolute screen coordinates and duplicate click actions.",
+      "B. Replace all UI interactions with keyboard tab navigation.",
+      "C. Use OCR, anchor-based Image Search regions, and Analysis Packages with Process Streaming for troubleshooting.",
+      "D. Increase retry loops to compensate for UI instability.",
+      "E. Replace RPA with Composer even though the application has no APIs."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company initially automated invoice processing through RPA because the invoicing platform had no APIs. Two years later:\n\n- Stable REST APIs are now available\n- RPA maintenance costs are increasing\n- UI changes break bots frequently\n- Leadership wants reusable integrations for future projects\n- Governance and monitoring are becoming strategic priorities\n\nWhich modernization strategy BEST aligns with hyperautomation best practices?",
+    "options": [
+      "A. Continue investing in RPA because replacing working automations increases short-term risk.",
+      "B. Gradually transition from UI-based automation to API-led connectivity, keeping RPA only for unsupported legacy functionality.",
+      "C. Replace all RPA with one large Composer flow directly integrated to every backend system.",
+      "D. Centralize all integrations inside Salesforce Apex for maximum control.",
+      "E. Expose RPA bots themselves as APIs to avoid redesigning integrations."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A financial institution must synchronize transaction data with external systems under these constraints:\n\n- Strict API rate limits\n- SLA under 3 minutes\n- Retry capability without message loss\n- Ability to absorb traffic spikes\n- Horizontal scalability\n- Zero downtime requirements\n\nWhich architecture BEST satisfies these constraints?",
+    "options": [
+      "A. Composer flows calling external APIs directly with scheduled retries every hour.",
+      "B. Record-triggered Flows directly invoking external APIs synchronously.",
+      "C. Mule applications deployed on CloudHub using multiple workers, Persistent Queues, and API Manager throttling policies.",
+      "D. RPA bots processing transactions sequentially.",
+      "E. Apex batch jobs retrying failed transactions manually."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "An enterprise is adopting API-led connectivity. During architecture review, a team proposes bypassing Process APIs and allowing mobile applications to consume System APIs directly “to reduce latency.”\n\nWhy is this approach problematic in the long term?",
+    "options": [
+      "A. System APIs are intended only for RPA integrations.",
+      "B. Direct access tightly couples consumers to backend systems, reducing flexibility and increasing future maintenance costs.",
+      "C. Process APIs should only be used when Composer is unavailable.",
+      "D. Experience APIs cannot coexist with System APIs.",
+      "E. API-led connectivity prohibits mobile applications entirely."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A hyperautomation CoE is defining governance standards for enterprise APIs. Requirements include:\n\n- Reusable composable assets\n- Shared API specifications\n- Lifecycle states (development, stable, deprecated)\n- Discoverability by technical and business teams\n- Controlled promotion of reusable assets\n\nWhich capability BEST aligns with these goals?",
+    "options": [
+      "A. Composer Run History",
+      "B. Salesforce Flow Testing",
+      "C. Anypoint Exchange lifecycle management",
+      "D. RPA Process Matrix",
+      "E. Scheduled Flows"
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company processes onboarding for external vendors. The process requires:\n\n- Human reviews\n- Multi-department approvals\n- SLA monitoring\n- External ERP integrations\n- Legacy desktop application interactions\n- Long-running workflow visibility\n- Regional escalation rules\n\nWhich architecture BEST fits the scenario?",
+    "options": [
+      "A. Composer-only architecture with retry loops and scheduled polling.",
+      "B. Flow Orchestration for long-running human workflows, APIs for ERP integrations, and RPA for legacy desktop interactions.",
+      "C. Salesforce Flow only with Apex callouts and manual desktop updates.",
+      "D. RPA bots handling the entire onboarding process independently.",
+      "E. API Manager directly orchestrating approvals and escalations."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A multinational retailer deploys Mule applications on CloudHub. During holiday sales:\n\n- Traffic spikes unpredictably\n- CPU and memory usage vary by region\n- Message throughput increases dramatically\n- Leadership wants minimal operational intervention\n- Infrastructure costs must remain controlled\n\nWhich strategy BEST balances scalability, resiliency, and operational efficiency?",
+    "options": [
+      "A. Permanently deploy the largest possible worker size in every region.",
+      "B. Use manual scaling procedures during holiday periods.",
+      "C. Configure autoscaling policies using CPU and memory thresholds to scale workers horizontally and vertically as needed.",
+      "D. Replace CloudHub deployments with Composer flows because Composer abstracts infrastructure management.",
+      "E. Move integrations into RPA bots to distribute processing loads dynamically."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A multinational bank currently uses:\n\n- Salesforce Flow for internal automation\n- Composer for SaaS integrations\n- MuleSoft APIs for core banking\n- RPA for legacy desktop systems\n\nAfter an audit, regulators require:\n\n- Regional data residency enforcement\n- Per-client API throttling\n- Immutable audit trails\n- Centralized observability\n- Zero direct access from Salesforce to banking systems\n- Gradual migration without disrupting current business automations\n\nThe business also insists that non-technical admins must continue owning low-complexity automations.\n\nWhich target architecture BEST satisfies all constraints?",
+    "options": [
+      "A. Replace all Composer and Flow automations with a centralized monolithic Mule application controlled exclusively by IT.",
+      "B. Maintain Flow and Composer as orchestration layers, introduce regionalized System APIs governed through API Manager, isolate compliance logic within APIs, and preserve RPA only for unsupported legacy systems.",
+      "C. Move all integrations into Salesforce Apex and use Shield Platform Encryption to satisfy governance requirements.",
+      "D. Replace APIs with RPA bots because UI automation prevents direct access to backend banking systems.",
+      "E. Consolidate all regional integrations into one Composer flow with conditional logic for residency and throttling."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A healthcare provider processes insurance claims through a long-running workflow involving:\n\n- Medical review\n- Compliance approval\n- Fraud analysis\n- Parallel investigations\n- External insurance APIs\n- Desktop applications without APIs\n- SLA escalation chains\n- Reprocessing after rejection\n- Regulatory audit requirements\n\nThe workflow can remain active for weeks.\n\nWhich architecture BEST supports resiliency, observability, and maintainability?",
+    "options": [
+      "A. One large record-triggered Flow with scheduled paths and Apex exception handling.",
+      "B. Flow Orchestration coordinating human stages, Process APIs orchestrating insurance logic, and RPA automating unsupported desktop systems.",
+      "C. Composer flows polling external systems continuously until all approvals are complete.",
+      "D. RPA bots executing the entire process including human approvals through email scraping.",
+      "E. Apex schedulers coordinating approvals and desktop automations manually."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "An enterprise has hundreds of APIs managed by different teams. Common problems include:\n\n- Duplicate APIs exposing the same systems\n- Inconsistent authentication standards\n- Consumers unaware of reusable assets\n- Breaking changes impacting downstream teams\n- Uncontrolled API proliferation\n\nThe architecture board wants to implement a governance model aligned with composable enterprise principles.\n\nWhich approach BEST addresses the root problem?",
+    "options": [
+      "A. Allow each team to independently publish APIs to maximize delivery speed.",
+      "B. Centralize all integrations inside one “enterprise API” maintained by a single team.",
+      "C. Publish reusable APIs and specifications into Anypoint Exchange, enforce governance and lifecycle policies through API Manager, and standardize reusable System APIs.",
+      "D. Replace APIs with shared RPA bots to avoid versioning complexity.",
+      "E. Store API documentation in spreadsheets managed by enterprise architects."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A logistics company processes millions of shipment events daily. Requirements include:\n\n- Near real-time processing\n- Horizontal scalability\n- Zero message loss\n- Regional failover\n- Back-pressure handling during spikes\n- API throttling\n- Operational visibility\n\nWhich deployment and runtime strategy BEST satisfies these requirements?",
+    "options": [
+      "A. Composer flows running every minute with retry loops and manual monitoring.",
+      "B. Record-triggered Flows directly invoking partner APIs synchronously.",
+      "C. Mule applications deployed on CloudHub with multiple workers, Persistent Queues, autoscaling policies, and API Manager throttling.",
+      "D. RPA bots distributing shipment updates across regions.",
+      "E. Apex batch jobs replaying failed shipment events every hour."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "An insurance company uses MuleSoft RPA against a legacy underwriting application. The UI changes frequently, causing:\n\n- Selector instability\n- False-positive image matches\n- Intermittent failures\n- High maintenance effort\n\nThe RPA team wants to redesign bots for maximum resiliency.\n\nWhich redesign BEST follows MuleSoft RPA best practices?",
+    "options": [
+      "A. Increase retry counts and duplicate image searches multiple times per step.",
+      "B. Replace all Image Search activities with hardcoded mouse coordinates.",
+      "C. Use OCR-based dynamic searches, anchor-relative search regions, reusable workflows, and modular exception handling.",
+      "D. Eliminate exception handling to reduce workflow complexity.",
+      "E. Replace the application entirely before improving the automation."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A company is modernizing from point-to-point integrations toward API-led connectivity. During implementation, developers propose letting mobile apps directly consume System APIs to reduce latency and avoid “unnecessary” Experience APIs.\n\nWhat is the MOST significant long-term architectural risk of this decision?",
+    "options": [
+      "A. Mobile applications cannot authenticate directly against System APIs.",
+      "B. Tight consumer coupling to backend data models will reduce reuse, increase change impact, and weaken channel-specific abstraction.",
+      "C. System APIs only support internal consumers.",
+      "D. Experience APIs increase API latency beyond acceptable enterprise limits.",
+      "E. API Manager policies cannot be applied to System APIs."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A global retailer uses Composer integrations extensively because business teams can maintain them independently. Over time:\n\n- Integrations became duplicated\n- Mapping logic diverged\n- SLA monitoring became inconsistent\n- Security policies vary between flows\n- Vendor APIs are changing frequently\n\nThe CIO wants stronger governance without removing low-code ownership from business teams.\n\nWhich strategy BEST balances governance and agility?",
+    "options": [
+      "A. Replace all Composer flows with Apex integrations owned entirely by developers.",
+      "B. Continue allowing independent Composer development but document standards in Confluence.",
+      "C. Standardize reusable APIs managed through Anypoint Platform while keeping Composer focused on orchestration and business-owned automation.",
+      "D. Replace Composer with RPA because bots centralize automation logic automatically.",
+      "E. Merge all Composer flows into one global enterprise flow."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "A financial institution must expose APIs externally under strict compliance requirements:\n\n- OAuth and client enforcement\n- Regional throttling\n- SLA dashboards\n- Runtime observability\n- Controlled deprecation\n- Consumer analytics\n- Non-breaking version evolution\n\nWhich combination BEST fulfills these requirements?",
+    "options": [
+      "A. Composer + Salesforce Flow + Scheduled Apex",
+      "B. API Manager + Runtime Manager/Monitoring + Anypoint Exchange lifecycle management",
+      "C. RPA Manager + Process Streaming",
+      "D. Flow Orchestration + External Services",
+      "E. Apex REST services only"
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  },
+  {
+    "content": "A company orchestrates order fulfillment across:\n\n- Salesforce\n- ERP APIs\n- Warehouse SaaS APIs\n- Desktop shipping systems without APIs\n- Human approval queues\n\nLeadership wants:\n\n- Reduced operational overhead\n- Reusable integrations\n- Long-running workflow visibility\n- Simplified troubleshooting\n- Isolation from future vendor changes\n\nWhich architecture BEST satisfies the enterprise goals?",
+    "options": [
+      "A. Composer-only orchestration integrating directly with every system.",
+      "B. One monolithic Mule application embedding orchestration, UI automation, and approvals together.",
+      "C. Flow Orchestration for human workflow coordination, API-led integrations for reusable connectivity, and RPA isolated to desktop-only dependencies.",
+      "D. Apex schedulers orchestrating every integration path.",
+      "E. RPA bots executing the entire process end-to-end."
+    ],
+    "correctAnswer": "C",
+    "explanation": null
+  },
+  {
+    "content": "An enterprise integration team is evaluating scalability options for Mule applications on CloudHub. Current challenges include:\n\n- Seasonal traffic spikes\n- Uneven regional workloads\n- CPU-intensive transformations\n- Growing queue backlogs\n- Pressure to reduce infrastructure costs\n\nThe team must choose a scaling strategy balancing resiliency and cost efficiency.\n\nWhich approach BEST aligns with CloudHub scalability principles?",
+    "options": [
+      "A. Permanently allocate maximum worker sizes in every environment to avoid scaling events.",
+      "B. Use autoscaling policies combining horizontal and vertical scaling thresholds while leveraging Persistent Queues for workload distribution and resiliency.",
+      "C. Replace CloudHub with Composer because no-code platforms scale automatically without infrastructure concerns.",
+      "D. Handle workload spikes through additional RPA bots operating in parallel.",
+      "E. Avoid horizontal scaling because distributed workers increase architectural complexity."
+    ],
+    "correctAnswer": "B",
+    "explanation": null
+  }
+]

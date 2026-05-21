@@ -2,37 +2,48 @@ import { Question } from '@/lib/types'
 
 // Validação de resposta correta
 export function validateAnswer(
-  selectedOptions: string[],
-  correctAnswer: string,
-  options: string[]
+  selectedLetters: string[],
+  correctAnswer: string
 ): boolean {
-  // Extrair letras corretas (ex: "A" ou "A, C")
   const correctLetters = correctAnswer
     .split(',')
     .map(l => l.trim().toUpperCase().replace(/[^A-Z]/g, ''))
     .filter(l => l)
 
-  // Encontrar textos completos das opções corretas
-  const correctOptionTexts = correctLetters.map(letter => {
-    const prefix = `${letter}.`
-    return options.find(opt => opt.trim().toUpperCase().startsWith(prefix)) || ''
-  }).filter(Boolean)
+  const selectedSet = new Set(
+    selectedLetters
+      .map(l => l.trim().toUpperCase().replace(/[^A-Z]/g, ''))
+      .filter(l => l)
+  )
+  const correctSet = new Set(correctLetters)
 
-  // Normalizar textos para comparação
-  const normalize = (text: string) => {
-    return text
-      .replace(/^[A-Z]\.\s*/i, '') // Remove "A. " prefix
-      .trim()
-      .toUpperCase()
-  }
-
-  const correctSet = new Set(correctOptionTexts.map(normalize))
-  const selectedSet = new Set(selectedOptions.map(normalize))
-
-  // Verificar igualdade estrita de conjuntos
   return correctSet.size > 0 &&
     correctSet.size === selectedSet.size &&
-    [...correctSet].every(txt => selectedSet.has(txt))
+    [...correctSet].every(letter => selectedSet.has(letter))
+}
+
+export function validateSelectedOptions(
+  selectedOptions: string[],
+  options: string[],
+  correctAnswer: string
+): boolean {
+  const correctOptions = correctAnswer
+    .split(',')
+    .map(letter => letter.trim().toUpperCase().replace(/[^A-Z]/g, ''))
+    .filter(Boolean)
+    .map(letter => {
+      const index = letter.charCodeAt(0) - 65
+      return options[index]
+    })
+    .filter(Boolean)
+    .map(normalizeOptionText)
+
+  const selectedSet = new Set(selectedOptions.map(normalizeOptionText).filter(Boolean))
+  const correctSet = new Set(correctOptions)
+
+  return correctSet.size > 0 &&
+    correctSet.size === selectedSet.size &&
+    [...correctSet].every(option => selectedSet.has(option))
 }
 
 // Verifica se é múltipla escolha
@@ -45,6 +56,14 @@ export function normalizeAnswer(answer: string): string {
   return answer.trim()
     .replace(/[.]+/g, '')
     .replace(/\s+/g, '')
+    .toUpperCase()
+}
+
+export function normalizeOptionText(option: string): string {
+  return option
+    .replace(/^[A-Z][.)]\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
     .toUpperCase()
 }
 

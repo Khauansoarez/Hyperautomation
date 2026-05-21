@@ -1,4 +1,4 @@
-import { SimuladoType } from '@prisma/client'
+import type { SimuladoType } from '@/lib/simulados'
 
 // Tipos centralizados do sistema de simulados
 
@@ -10,6 +10,15 @@ export interface Question {
   explanation?: string | null
   simuladoType?: SimuladoType
   createdAt?: Date
+}
+
+export interface QuizQuestion {
+  id: string
+  content: string
+  options: string[]
+  explanation?: string | null
+  simuladoType?: SimuladoType
+  multiSelect: boolean
 }
 
 export interface Answer {
@@ -26,7 +35,7 @@ export interface Attempt {
   score: number
   total: number
   userName: string
-  createdAt: Date
+  createdAt: Date | string
   answers?: Answer[]
 }
 
@@ -34,7 +43,6 @@ export interface QuizState {
   currentIndex: number
   answers: Record<string, string[]>
   isSubmitting: boolean
-  showFeedback: Record<string, boolean>
   userName: string
   nameSubmitted: boolean
   showConfirmModal: boolean
@@ -54,8 +62,9 @@ export interface SimuladoInfo {
   id: SimuladoType
   title: string
   description: string
-  icon: string
-  color: string
+  questionCount: number
+  durationMinutes: number
+  accent: string
 }
 
 export type QuizStatus = 'Não iniciado' | 'Em progresso' | 'Concluído'

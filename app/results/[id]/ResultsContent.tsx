@@ -2,12 +2,23 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import ThemeToggle from '@/components/ThemeToggle'
-import { Answer, Attempt } from '@/lib/types'
+import type { Prisma } from '@prisma/client'
 import { calculatePercentage, isPassed } from '@/lib/utils/formatting'
 
+type ResultAttempt = Prisma.AttemptGetPayload<{
+    include: {
+        answers: {
+            include: {
+                question: true
+            }
+        }
+    }
+}>
+
 interface ResultsContentProps {
-    attempt: Attempt
+    attempt: ResultAttempt
 }
 
 export default function ResultsContent({ attempt }: ResultsContentProps) {
@@ -29,14 +40,16 @@ export default function ResultsContent({ attempt }: ResultsContentProps) {
     const correctAnswers = attempt.score
     const percentage = calculatePercentage(correctAnswers, totalQuestions)
     const passed = isPassed(correctAnswers, totalQuestions)
+    const simuladoType = attempt.answers[0]?.question.simuladoType
 
     const getLetter = (i: number) => String.fromCharCode(65 + i)
+    const normalizeOptionText = (text: string) => text.replace(/^[A-Z]\.\s*/i, '').trim()
 
     return (
         <div style={{ width: '100%', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
 
             {/* Header */}
-            <header className="sticky-header" style={{
+            <header className="results-header" style={{
                 padding: '20px',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -44,11 +57,15 @@ export default function ResultsContent({ attempt }: ResultsContentProps) {
                 marginBottom: '0'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
-                    <img
-                        src="/zello-logo-removebg-preview.png"
-                        alt="Zello"
-                        style={{ height: '40px', width: 'auto' }}
-                    />
+                    <Link href="/" aria-label="Voltar para a página inicial do simulado" style={{ display: 'inline-flex' }}>
+                        <Image
+                            src="/zello-logo-removebg-preview.png"
+                            alt="Zello"
+                            width={112}
+                            height={40}
+                            style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
+                        />
+                    </Link>
                     <ThemeToggle />
                 </div>
                 <div style={{
@@ -58,9 +75,11 @@ export default function ResultsContent({ attempt }: ResultsContentProps) {
                 }}>
                     Resultado do Simulado
                 </div>
-                <img
+                <Image
                     src="/fabrica-removebg-preview.png"
                     alt="Fábrica"
+                    width={180}
+                    height={120}
                     style={{ height: '120px', width: 'auto' }}
                 />
             </header>
@@ -143,8 +162,12 @@ export default function ResultsContent({ attempt }: ResultsContentProps) {
                 </h2>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '40px' }}>
-                    {attempt.answers.map((answer: any, idx: number) => {
+                    {attempt.answers.map((answer, idx) => {
                         const isCorrect = answer.isCorrect
+                        const selectedOptions = answer.selected
+                            .split('\n')
+                            .map(normalizeOptionText)
+                            .filter(Boolean)
 
                         return (
                             <div
@@ -196,9 +219,10 @@ export default function ResultsContent({ attempt }: ResultsContentProps) {
 
                                 {/* Options */}
                                 <div className="alternatives-container" style={{ marginBottom: '14px' }}>
-                                    {answer.question.options.map((opt: any, optIdx: number) => {
+                                    {answer.question.options.map((opt, optIdx) => {
                                         const letter = getLetter(optIdx)
-                                        const isSelected = answer.selected?.includes(letter)
+                                        const optionText = normalizeOptionText(opt)
+                                        const isSelected = selectedOptions.includes(optionText)
                                         const isCorrectAnswer = answer.question.correctAnswer?.includes(letter)
 
                                         let cardClass = 'alternative-card'
@@ -212,7 +236,7 @@ export default function ResultsContent({ attempt }: ResultsContentProps) {
                                                     {isCorrectAnswer ? '✓' : isSelected && !isCorrect ? '✗' : letter}
                                                 </div>
                                                 <div className="alternative-text">
-                                                    {opt.replace(/^[A-Z]\.\s*/, '')}
+                                                    {optionText}
                                                 </div>
                                             </div>
                                         )
@@ -276,7 +300,7 @@ export default function ResultsContent({ attempt }: ResultsContentProps) {
                     justifyContent: 'center',
                     flexWrap: 'wrap'
                 }}>
-                    <Link href="/quiz" className="btn btn-primary" style={{ textAlign: 'center', justifyContent: 'center' }}>
+                    <Link href={simuladoType ? `/quiz?type=${simuladoType}` : '/quiz'} className="btn btn-primary" style={{ textAlign: 'center', justifyContent: 'center' }}>
                         Novo Simulado
                     </Link>
                     <Link href="/resultados" className="btn btn-outline" style={{ textAlign: 'center', justifyContent: 'center' }}>

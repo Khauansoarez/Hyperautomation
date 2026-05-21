@@ -1,11 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+function isAuthorized(request: Request) {
+  const token = process.env.ADMIN_ATTEMPTS_TOKEN
+  return Boolean(token) && request.headers.get('x-admin-token') === token
+}
+
 export async function DELETE(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!isAuthorized(request)) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
 
     // Check if attempt exists first
