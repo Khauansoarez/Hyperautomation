@@ -103,11 +103,13 @@ export default function QuizRunner({ questions, simuladoType }: QuizRunnerProps)
     )
     const total = safeQuestions.length
     const currentQuestion = safeQuestions[currentIndex]
-    const answeredCount = Object.keys(answers).length
+    const answeredCount = Object.values(answers).filter((selected) => selected.length > 0).length
     const progressPercent = total > 0 ? Math.round((answeredCount / total) * 100) : 0
     const selectedLetters = currentQuestion ? answers[currentQuestion.id] || [] : []
     const reviewedCount = reviewedQuestionIds.size
     const currentQuestionMarkedForReview = currentQuestion ? reviewedQuestionIds.has(currentQuestion.id) : false
+    const unansweredCount = Math.max(total - answeredCount, 0)
+    const canFinish = unansweredCount === 0
 
     const saveProgress = useCallback((completed = false, answered = answeredCount) => {
         const progressData = readSimuladoProgress()
@@ -124,9 +126,9 @@ export default function QuizRunner({ questions, simuladoType }: QuizRunnerProps)
 
     useEffect(() => {
         if (nameSubmitted && total > 0) {
-            saveProgress(false, Object.keys(answers).length)
+            saveProgress(false, answeredCount)
         }
-    }, [answers, nameSubmitted, saveProgress, total])
+    }, [answeredCount, nameSubmitted, saveProgress, total])
 
     const handleSelect = (optionIndex: number) => {
         if (!currentQuestion || optionIndex < 0 || optionIndex >= currentQuestion.options.length) return
@@ -193,7 +195,7 @@ export default function QuizRunner({ questions, simuladoType }: QuizRunnerProps)
     }
 
     const handleSubmit = async () => {
-        if (isSubmitting || total === 0) return
+        if (isSubmitting || total === 0 || !canFinish) return
 
         setIsSubmitting(true)
         setShowConfirmModal(false)
@@ -228,7 +230,15 @@ export default function QuizRunner({ questions, simuladoType }: QuizRunnerProps)
     const handleFinishClick = () => {
         if (isSubmitting || isTransitioning) return
 
-        if (answeredCount < total || reviewedCount > 0) {
+        if (!canFinish) {
+            const firstUnansweredIndex = safeQuestions.findIndex(question => !answers[question.id]?.length)
+            if (firstUnansweredIndex >= 0) {
+                setCurrentIndex(firstUnansweredIndex)
+            }
+            return
+        }
+
+        if (reviewedCount > 0) {
             setShowConfirmModal(true)
             return
         }
@@ -354,11 +364,16 @@ export default function QuizRunner({ questions, simuladoType }: QuizRunnerProps)
                     <div className="finish-panel">
                         <button
                             onClick={handleFinishClick}
-                            disabled={isTransitioning || isSubmitting}
+                            disabled={isTransitioning || isSubmitting || !canFinish}
                             className="btn btn-danger"
                         >
                             {isSubmitting ? 'Enviando...' : 'Finalizar simulado'}
                         </button>
+                        {!canFinish && (
+                            <p className="finish-panel__hint">
+                                Responda as {unansweredCount} {unansweredCount === 1 ? 'questão restante' : 'questões restantes'} para finalizar.
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -368,13 +383,7 @@ export default function QuizRunner({ questions, simuladoType }: QuizRunnerProps)
                 onClose={() => setShowConfirmModal(false)}
                 onConfirm={handleSubmit}
                 title="Finalizar simulado?"
-                message={
-                    answeredCount < total && reviewedCount > 0
-                        ? `Ainda há ${total - answeredCount} questão(ões) sem resposta e ${reviewedCount} marcada(s) para revisão. Você pode finalizar agora ou continuar revisando.`
-                        : answeredCount < total
-                            ? `Ainda há ${total - answeredCount} questão(ões) sem resposta. Você pode finalizar agora ou continuar revisando.`
-                            : `Você marcou ${reviewedCount} questão(ões) para revisão. Finalizar mesmo assim?`
-                }
+                message={`Você marcou ${reviewedCount} questão(ões) para revisão. Finalizar mesmo assim?`}
                 confirmText="Finalizar"
                 cancelText="Continuar"
                 isLoading={isSubmitting}
